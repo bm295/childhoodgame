@@ -34,7 +34,7 @@ app.get('/', function(request, response) {
         return console.error('error running query', err)
       }
       
-      response.render("home", { data: result })
+      response.render("home", { data: JSON.stringify(result.rows) })
     })
   })  
 })
