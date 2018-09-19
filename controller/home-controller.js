@@ -23,7 +23,7 @@ const getHomeView = function(request, response) {
         return console.error('error running query', err)
       }
       
-      return response.render("home", { data: JSON.stringify(result.rows) })
+      return response.render("home", { data: result.rows })
     })
   })  
 }
