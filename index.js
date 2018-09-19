@@ -7,9 +7,9 @@ app.use(express.static(__dirname + '/public'))
 app.set("view engine", "ejs")
 app.set("views", "./views")
 
-/* app.get('/', homeController.getHomeView) */
+app.get('/', homeController.getHomeView)
 
-const pg = require('pg')
+/* const pg = require('pg')
 const config = {
   user: 'bcfodeyhmhsrcn',
   host: 'ec2-54-197-230-161.compute-1.amazonaws.com',
@@ -37,7 +37,7 @@ app.get('/', function(request, response) {
       response.render("home", { data: JSON.stringify(result.rows) })
     })
   })  
-})
+}) */
 
 app.listen(app.get('port'), function() {
   console.log("Node app is running at localhost:" + app.get('port'))
