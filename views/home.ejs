@@ -9,7 +9,9 @@ Hey, let's make your own kingdom.
 <br/>
 I need a farmer.
 <br/>
-<%= data %>
+<% data.forEach(function(farmer) { %>
+I'm a farmer with level <%= farmer.Level %>
+<% }) %>
 </body>
 
 </html>
