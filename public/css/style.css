@@ -34,3 +34,70 @@ body * {
 h1 {
   margin: 0;
 }
+
+.todo {
+  background: #f9f9f9;
+  padding: 1em;
+  border-radius: 4px;
+  color: #ccc;
+  font-style: italic;
+  font-weight: lighter;
+  font-size: .9em;
+}
+.todo ul {
+  margin: .4em 0;
+  padding: 0 1em;
+}
+.todo ul li {
+  list-style-position: inside;
+}
+
+.product-grid {
+  width: 60em;
+  margin: 2rem auto;
+}
+.product-grid.product-grid--flexbox .product-grid__wrapper {
+  display: flex;
+  flex-wrap: wrap;
+}
+.product-grid.product-grid--flexbox .product-grid__title {
+  height: auto;
+}
+.product-grid.product-grid--flexbox .product-grid__title:after {
+  display: none;
+}
+.product-grid__wrapper {
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+.product-grid__product-wrapper {
+  padding: 1rem;
+  float: left;
+  width: 33.33333%;
+}
+.product-grid__product {
+  padding: 1rem;
+  position: relative;
+  cursor: pointer;
+  background: #fff;
+  border-radius: 4px;
+}
+.product-grid__product:hover {
+  box-shadow: 0px 0px 0px 1px #eee;
+  z-index: 50;
+}
+.product-grid__product:hover .product-grid__extend {
+  display: block;
+}
+.product-grid__img-wrapper {
+  width: 100%;
+  text-align: center;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  height: 150px;
+}
+.product-grid__img {
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+}

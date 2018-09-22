@@ -6,18 +6,37 @@
 </head>
 
 <body>
-Hey, let's make your own kingdom.
-<br/>
-I need a farmer.
-<br/>
-<% data.forEach(function(farmer) { %>
-I'm a farmer with level <%= farmer.Level %>
-<% }) %>
-<div class="wrapper">
-  <div class="desc">
-    <h1>My childhood kingdom</h1>
+  <div class="wrapper">
+    <div class="desc">
+      <h1>My childhood kingdom</h1>
+      <p>Place to show your creativeness</p>
+
+      <div class="todo">
+  			<span>My features:</span>
+  			<ul>
+  				<li>
+            <% data.forEach(function(farmer) { %>
+              I'm a farmer with level <%= farmer.Level %>
+            <% }) %>
+          </li>
+  			</ul>
+  		</div>
+    </div>
+
+    <div class="content">
+      <div class="product-grid product-grid--flexbox">
+        <div class="product-grid__wrapper">
+          <div class="product-grid__product-wrapper">
+            <div class="product-grid__product">
+              <div class="product-grid__img-wrapper">
+  							<img src="https://powerpictures.crystalgraphics.com/photo/corn_field_young_plants_fertile_soil_closeup_vibrant_cg1p80690739c_th.jpg" alt="Img" class="product-grid__img" />
+  						</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 </body>
 
 </html>
