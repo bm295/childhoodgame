@@ -204,10 +204,11 @@ body {
   left: 0;
   background: #fff;
 }
-.product-grid__description {
+.assets-grid__description {
   font-size: .875em;
   margin-top: .4375rem;
   margin-bottom: 0;
+  width: 267px;
 }
 .product-grid__btn {
   display: inline-block;
