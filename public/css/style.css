@@ -178,7 +178,7 @@ body {
   height: 1.5em;
   background: linear-gradient(to right, rgba(255, 255, 255, 0), white 50%);
 }
-.product-grid__price {
+.product-grid__level {
   color: #E91E63;
   font-weight: bold;
   letter-spacing: .4px;

@@ -14,18 +14,18 @@ const getHomeView = function(request, response) {
     if(err) {
       return console.error('error fetching client from pool', err)
     }
-    
-    client.query('SELECT "Id", "RoleId", "Level" FROM "Person";', function(err, result) {
+
+    client.query('SELECT "Title", "Description", "ImgURL", "Level" FROM "Assets";', function(err, result) {
       done()
-      
+
       if(err) {
         response.end()
         return console.error('error running query', err)
       }
-      
+
       return response.render("home", { data: result.rows })
     })
-  })  
+  })
 }
 
 exports.getHomeView = getHomeView
