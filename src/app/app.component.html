@@ -1,0 +1,41 @@
+<div class="wrapper">
+  <section class="desc">
+    <h1>My childhood kingdom</h1>
+    <p>Place to show your creativeness</p>
+
+    <div class="todo">
+      <span>My features:</span>
+      <ul>
+        <li>Farmer</li>
+        <li>Assets</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="content">
+    <p *ngIf="error" class="error">{{ error }}</p>
+
+    <div class="product-grid product-grid--flexbox" *ngIf="assets.length">
+      <div class="product-grid__wrapper">
+        <article class="product-grid__product-wrapper" *ngFor="let item of assets">
+          <div class="product-grid__product">
+            <div class="product-grid__img-wrapper">
+              <img [src]="item.ImgURL" alt="Img" class="product-grid__img" />
+            </div>
+
+            <span class="product-grid__title">{{ item.Title }}</span>
+            <span class="product-grid__level">Level {{ item.Level }}</span>
+
+            <div class="product-grid__extend-wrapper">
+              <div class="product-grid__extend">
+                <p class="assets-grid__description">{{ item.Description }}</p>
+                <span class="product-grid__btn product-grid__add-to-cart">Action</span>
+                <span class="product-grid__btn product-grid__view">View more</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</div>
