@@ -9,14 +9,15 @@ This repository is now a C#/.NET solution for running a DOS-game host and game-s
 
 ## SDK and framework version
 
-- Target framework: **.NET 8 (`net8.0`)**.
-- `global.json` pins SDK version **8.0.100** with `rollForward: latestFeature`.
+- Target framework: **.NET 10 (`net10.0`)**.
+- Language version: **C# 10** via explicit `<LangVersion>10.0</LangVersion>`.
+- `global.json` pins SDK version **10.0.103** with `rollForward: latestFeature`.
 
-> Why .NET 8? The current toolchain in this environment does not include a .NET SDK (`dotnet --list-sdks` reports `dotnet: command not found`), so `.NET 14` could not be validated. The solution is pinned to the nearest broadly supported SDK baseline (`8.0.100`) to keep the project buildable in standard .NET setups.
+> Note: `.NET 14` is not a current released target framework. The latest stable .NET target listed by Microsoft Learn is `.NET 10` (`net10.0`), so this repository is upgraded to `.NET 10` while keeping the language level pinned to `C# 10`.
 
 ## Prerequisites
 
-1. Install the .NET 8 SDK (8.0.100 or newer 8.0 feature band).
+1. Install the .NET 10 SDK (10.0.103 or newer compatible 10.0 feature band).
 2. Verify installation:
 
 ```bash
