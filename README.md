@@ -1,34 +1,33 @@
 # ChildhoodGame (.NET)
 
-This repository is a C#/.NET solution that validates and launches DOS games through a configurable runtime.
+This repository is a C#/.NET solution that validates and launches DOS games through a simple Windows desktop launcher.
 
 ## Projects
 
-- `src/ChildhoodGame.Runner`: Console host with CLI options for validation and runtime launch.
+- `src/ChildhoodGame.Runner`: Windows launcher for browsing a game file, validating the package, and starting the runtime.
 - `src/ChildhoodGame.Core`: Loader/runtime abstractions and DOS emulator strategy integration.
 
 ## SDK and framework version
 
-- Target framework: **.NET 10 (`net10.0`)**.
+- Target framework: **.NET 10 (`net10.0`)** for core libraries and **.NET 10 Windows (`net10.0-windows`)** for the desktop launcher.
 - Language version: **C# 10** via explicit `<LangVersion>10.0</LangVersion>`.
 - `global.json` pins SDK version **10.0.103** with `rollForward: latestFeature`.
 
-## CLI usage
+## Launch the UI
 
 ```bash
-dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj -- \
-  --game-path /path/to/game \
-  --run \
-  --save-state /path/to/save.sav \
-  --load-state /path/to/load.sav
+dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj
 ```
 
-### Supported options
+The launcher opens a desktop window where you can:
 
-- `--game-path` (required): root folder containing game assets.
-- `--run` (optional): starts the runtime after validation; if omitted, validation-only mode is used.
-- `--save-state` (optional): path where save-state should be written by emulator wrapper.
-- `--load-state` (optional): path for a save-state to load at startup.
+- browse for any file inside the game folder
+- inspect the resolved game root folder
+- optionally choose save-state and load-state files
+- validate the package before launch
+- start and stop the runtime from the same window
+
+You can also drag and drop a file from the target game folder onto the launcher window.
 
 ## Game folder requirements
 

@@ -5,9 +5,9 @@ namespace ChildhoodGame.Core;
 public sealed class DosGameLoader : IGameLoader
 {
     private static readonly string[] RequiredAssets =
-    [
+    {
         "DOSBOX.CONF"
-    ];
+    };
 
     public GameLoadResult Load(GameLaunchOptions options)
     {

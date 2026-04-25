@@ -65,11 +65,17 @@ public sealed class DosGameRuntime : IGameRuntime
             : new WrapperProcessDosEmulatorStrategy(config.EmulatorExecutable!, config.EmulatorArguments);
 }
 
-public sealed class WrapperProcessDosEmulatorStrategy(string emulatorExecutable, string? emulatorArguments) : IDosEmulatorStrategy
+public sealed class WrapperProcessDosEmulatorStrategy : IDosEmulatorStrategy
 {
-    private readonly string emulatorExecutable = emulatorExecutable;
-    private readonly string? emulatorArguments = emulatorArguments;
+    private readonly string emulatorExecutable;
+    private readonly string? emulatorArguments;
     private Process? process;
+
+    public WrapperProcessDosEmulatorStrategy(string emulatorExecutable, string? emulatorArguments)
+    {
+        this.emulatorExecutable = emulatorExecutable;
+        this.emulatorArguments = emulatorArguments;
+    }
 
     public bool IsRunning => process is { HasExited: false };
 
@@ -182,8 +188,15 @@ public sealed class EmbeddedCoreDosEmulatorStrategy : IDosEmulatorStrategy
     }
 }
 
-public sealed class RuntimeInputController(IGameRuntime runtime) : IInputController
+public sealed class RuntimeInputController : IInputController
 {
+    private readonly IGameRuntime runtime;
+
+    public RuntimeInputController(IGameRuntime runtime)
+    {
+        this.runtime = runtime;
+    }
+
     public Task SendCommandAsync(string command, CancellationToken cancellationToken = default) =>
         runtime.SendInputAsync(command, cancellationToken);
 }
