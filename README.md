@@ -1,11 +1,11 @@
 # ChildhoodGame (.NET)
 
-This repository is now a C#/.NET solution for running a DOS-game host and game-session orchestration logic.
+This repository is a C#/.NET solution that validates and launches DOS games through a configurable runtime.
 
 ## Projects
 
-- `src/ChildhoodGame.Runner`: Console/desktop host entry point that starts a game session.
-- `src/ChildhoodGame.Core`: Domain orchestration and win-condition evaluation logic.
+- `src/ChildhoodGame.Runner`: Console host with CLI options for validation and runtime launch.
+- `src/ChildhoodGame.Core`: Loader/runtime abstractions and DOS emulator strategy integration.
 
 ## SDK and framework version
 
@@ -13,36 +13,41 @@ This repository is now a C#/.NET solution for running a DOS-game host and game-s
 - Language version: **C# 10** via explicit `<LangVersion>10.0</LangVersion>`.
 - `global.json` pins SDK version **10.0.103** with `rollForward: latestFeature`.
 
-> Note: `.NET 14` is not a current released target framework. The latest stable .NET target listed by Microsoft Learn is `.NET 10` (`net10.0`), so this repository is upgraded to `.NET 10` while keeping the language level pinned to `C# 10`.
-
-## Prerequisites
-
-1. Install the .NET 10 SDK (10.0.103 or newer compatible 10.0 feature band).
-2. Verify installation:
+## CLI usage
 
 ```bash
-dotnet --info
+dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj -- \
+  --game-path /path/to/game \
+  --run \
+  --save-state /path/to/save.sav \
+  --load-state /path/to/load.sav
 ```
 
-## Restore and build
+### Supported options
 
-From repo root:
+- `--game-path` (required): root folder containing game assets.
+- `--run` (optional): starts the runtime after validation; if omitted, validation-only mode is used.
+- `--save-state` (optional): path where save-state should be written by emulator wrapper.
+- `--load-state` (optional): path for a save-state to load at startup.
 
-```bash
-dotnet restore ChildhoodGame.sln
-dotnet build ChildhoodGame.sln -c Release
+## Game folder requirements
+
+The loader validates:
+
+- `DOSBOX.CONF`
+- `game.config.json`
+- executable specified by `requiredExecutable` (defaults to `GAME.EXE`)
+
+`game.config.json` example:
+
+```json
+{
+  "emulatorType": "wrapper",
+  "emulatorExecutable": "dosbox",
+  "emulatorArguments": "-conf \"{config}\" -c \"mount c .\" -c \"c:\" -c \"{exe}\"",
+  "startupInput": ["ENTER"],
+  "requiredExecutable": "GAME.EXE"
+}
 ```
 
-## Run
-
-Use the runner project:
-
-```bash
-dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj
-```
-
-Expected output includes launch text and whether the win condition was met.
-
-## No Node.js runtime required
-
-Node/Angular build files were removed from the root workflow, and all executable entry points are now in C# (`Program.cs` under `ChildhoodGame.Runner`).
+Use `emulatorType: "embedded"` for embedded-core mode.
