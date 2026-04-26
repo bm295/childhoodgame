@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChildhoodGame.Core", "src\C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChildhoodGame.Runner", "src\ChildhoodGame.Runner\ChildhoodGame.Runner.csproj", "{F24A628D-0C9C-47BE-A36F-C2D2D0F1E7CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChildhoodGame.Core.Tests", "tests\ChildhoodGame.Core.Tests\ChildhoodGame.Core.Tests.csproj", "{A1A95E63-B5C9-4D9D-A46B-9114E3D5F3C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{F24A628D-0C9C-47BE-A36F-C2D2D0F1E7CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F24A628D-0C9C-47BE-A36F-C2D2D0F1E7CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F24A628D-0C9C-47BE-A36F-C2D2D0F1E7CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1A95E63-B5C9-4D9D-A46B-9114E3D5F3C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1A95E63-B5C9-4D9D-A46B-9114E3D5F3C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1A95E63-B5C9-4D9D-A46B-9114E3D5F3C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1A95E63-B5C9-4D9D-A46B-9114E3D5F3C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
