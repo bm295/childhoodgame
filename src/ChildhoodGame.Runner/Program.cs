@@ -1,5 +1,6 @@
 using ChildhoodGame.Core;
 using ChildhoodGame.Core.Strategy;
+using ChildhoodGame.Core.Strategy.TicTacToe;
 
 namespace ChildhoodGame.Runner;
 
@@ -20,14 +21,11 @@ internal static class Program
 
     private static async Task RunAutoWinModeAsync(string[] args)
     {
-        var maxSteps = ParseOption(args, "--steps", defaultValue: 20);
+        var maxSteps = ParseOption(args, "--steps", defaultValue: 100);
         var delayMs = ParseOption(args, "--delay-ms", defaultValue: 0);
+        var difficulty = ParseDifficultyOption(args, "--difficulty", TicTacToeDifficulty.Hard);
 
-        await using var runtime = new MockedGameStateRuntime(
-            new GameRuntimeState(
-                Score: 0,
-                Level: 1,
-                ObjectiveFlags: new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)));
+        await using var runtime = new MockedTicTacToeRuntime();
 
         var package = new GamePackage(
             GameRootPath: Environment.CurrentDirectory,
@@ -39,28 +37,29 @@ internal static class Program
 
         await runtime.StartAsync(package);
 
-        var detectors = new IWinConditionDetector[]
+        var detectors = new IWinConditionDetector<TicTacToeGameState>[]
         {
-            new ScoreWinConditionDetector(50),
-            new LevelWinConditionDetector(3),
-            new ObjectiveFlagWinConditionDetector(DeterministicAutoWinActionStrategy.BossKeyObjective)
+            new TicTacToePlayerWinConditionDetector()
         };
 
-        var loop = new AutoWinLoop(runtime, new DeterministicAutoWinActionStrategy(), detectors);
+        var loop = new AutoWinLoop<TicTacToeGameState>(
+            runtime,
+            new PaidBetaAlwaysWinActionStrategy(difficulty),
+            detectors);
         var result = await loop.RunAsync(new AutoWinOptions(maxSteps, delayMs));
 
-        Console.WriteLine("AUTOWIN MODE START");
+        Console.WriteLine($"TICTACTOE AUTOWIN MODE START;DIFFICULTY={(int)difficulty}");
         foreach (var entry in result.Progress)
         {
             var actionsText = entry.Actions.Count == 0 ? "<none>" : string.Join(',', entry.Actions);
             var satisfiedText = entry.SatisfiedConditions.Count == 0 ? "<none>" : string.Join('|', entry.SatisfiedConditions);
             Console.WriteLine(
-                $"STEP={entry.Step};STATE={entry.StateAfterActions.Score}/{entry.StateAfterActions.Level};ACTIONS={actionsText};CONDITIONS={satisfiedText};WIN={(entry.IsWin ? "yes" : "no")}");
+                $"STEP={entry.Step};RESTARTS={entry.StateAfterActions.RestartCount};BOARD={entry.StateAfterActions.Board};OUTCOME={entry.StateAfterActions.Outcome};ACTIONS={actionsText};CONDITIONS={satisfiedText};WIN={(entry.IsWin ? "yes" : "no")}");
         }
 
         Console.WriteLine(result.IsWin
-            ? $"AUTOWIN RESULT: WIN in {result.StepsExecuted} step(s)."
-            : $"AUTOWIN RESULT: INCOMPLETE after {result.StepsExecuted} step(s).");
+            ? $"TICTACTOE AUTOWIN RESULT: WIN in {result.StepsExecuted} step(s)."
+            : $"TICTACTOE AUTOWIN RESULT: INCOMPLETE after {result.StepsExecuted} step(s).");
 
         await runtime.StopAsync();
     }
@@ -81,5 +80,29 @@ internal static class Program
         }
 
         return defaultValue;
+    }
+
+    private static TicTacToeDifficulty ParseDifficultyOption(
+        string[] args,
+        string optionName,
+        TicTacToeDifficulty defaultValue)
+    {
+        var parsed = (int)defaultValue;
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (!args[i].Equals(optionName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!int.TryParse(args[i + 1], out parsed))
+            {
+                parsed = (int)defaultValue;
+            }
+        }
+
+        return Enum.IsDefined(typeof(TicTacToeDifficulty), parsed)
+            ? (TicTacToeDifficulty)parsed
+            : defaultValue;
     }
 }

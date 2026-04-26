@@ -6,7 +6,8 @@ public sealed class DosGameLoader : IGameLoader
 {
     private const string DefaultEmulatorType = "wrapper";
     private const string DefaultEmulatorExecutable = "dosbox";
-    private const string DefaultEmulatorArguments = "-conf \"{config}\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\"";
+    private const string DefaultDosBoxConfigPath = @"C:\Users\T14\AppData\Local\DOSBox\dosbox-0.74-3.conf";
+    private const string DefaultEmulatorArguments = "-conf \"" + DefaultDosBoxConfigPath + "\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\"";
 
     public GameLoadResult Load(GameLaunchOptions options)
     {
@@ -25,11 +26,8 @@ public sealed class DosGameLoader : IGameLoader
             return new GameLoadResult(false, null, errors);
         }
 
-        var dosConfigPath = FindFileByExtension(gameRootPath, ".conf", "DOSBOX.CONF");
-        if (dosConfigPath is null)
-        {
-            errors.Add($"Game folder must contain at least one .conf file: {gameRootPath}");
-        }
+        var dosConfigPath = FindFileByExtension(gameRootPath, ".conf", "DOSBOX.CONF")
+            ?? DefaultDosBoxConfigPath;
 
         var configPath = FindFileByExtension(gameRootPath, ".json", DosRuntimeConfig.ConfigFileName);
         if (configPath is null)
@@ -64,7 +62,7 @@ public sealed class DosGameLoader : IGameLoader
             }
         }
 
-        if (errors.Count > 0 || configPath is null || dosConfigPath is null || executablePath is null)
+        if (errors.Count > 0 || configPath is null || executablePath is null)
         {
             return new GameLoadResult(false, null, errors);
         }

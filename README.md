@@ -28,20 +28,28 @@ The launcher opens a desktop window where you can:
 
 You can also drag and drop the target game folder onto the launcher window.
 
-## Auto-win simulation mode
+## PAIDBETA auto-win simulation mode
 
-The runner also supports a deterministic automation loop:
+The runner also supports a PAIDBETA-aware TicTacToe automation loop:
 
 ```bash
-dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj -- --autowin --steps 20 --delay-ms 0
+dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj -- --autowin --steps 100 --delay-ms 0
 ```
 
-`--autowin` runs a strategy-driven state loop that repeatedly:
+`--difficulty` maps to the DOS prompt: `0` easy, `1` medium, `2` hard. Auto-win defaults to hard mode because the PAIDBETA source has an exploitable hard-mode fork bug.
+
+`--autowin` runs a Strategy-pattern state loop that repeatedly:
 
 - reads game state from runtime
-- selects next action(s)
+- selects next action(s) through an `IActionSelectionStrategy<TState>`
 - applies input commands
-- evaluates win conditions (score, level, objective flags)
+- evaluates win conditions through `IWinConditionDetector<TState>`
+
+The concrete PAIDBETA strategy models the C source's hard-mode computer logic:
+
+- play center first
+- if the computer's random first move is a side, force a fork and win
+- if the computer's random first move is a corner, restart and retry because that branch is draw-only with best play
 
 The console output is stable and step-based so it can be used in CI logs.
 
@@ -49,13 +57,12 @@ The console output is stable and step-based so it can be used in CI logs.
 
 The loader validates that the selected folder contains:
 
-- one `.conf` file
 - one `.exe` file
 - one `.json` file
 
-When conventional names are present, the loader prefers `DOSBOX.CONF` and `game.config.json`.
-Otherwise, it uses the first matching file alphabetically. If compatible runtime settings are missing,
-the launcher defaults to wrapper mode with `dosbox`.
+When conventional names are present, the loader prefers `game.config.json`.
+Otherwise, it uses the first matching JSON file alphabetically. If compatible runtime settings are missing,
+the launcher defaults to wrapper mode with `dosbox` and `C:\Users\T14\AppData\Local\DOSBox\dosbox-0.74-3.conf`.
 
 `game.config.json` example:
 
@@ -65,11 +72,11 @@ A ready-to-use sample file is available at `samples/game.config.json`.
 {
   "emulatorType": "wrapper",
   "emulatorExecutable": "C:\\Program Files (x86)\\DOSBox-0.74-3\\DOSBox.exe",
-  "emulatorArguments": "-conf \"{config}\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\"",
-  "startupInput": ["ENTER"]
+  "emulatorArguments": "-conf \"C:\\Users\\T14\\AppData\\Local\\DOSBox\\dosbox-0.74-3.conf\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\""
 }
 ```
 
 Use `emulatorType: "embedded"` for embedded-core mode.
 
-In `emulatorArguments`, `{config}` is replaced with the selected `.conf` file path, `{gameRoot}` is replaced with the selected game folder, and `{exe}` is replaced with the executable file name, such as `GAME.EXE`.
+In `emulatorArguments`, `{gameRoot}` is replaced with the selected game folder, and `{exe}` is replaced with the executable file name, such as `GAME.EXE`.
+For `PAIDBETA.EXE`, the launcher controls input directly: it chooses hard mode, reads the board from the DOSBox window, and sends strategy moves in response to the computer's observed move.

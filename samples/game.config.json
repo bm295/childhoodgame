@@ -1,8 +1,5 @@
 {
   "emulatorType": "wrapper",
   "emulatorExecutable": "C:\\Program Files (x86)\\DOSBox-0.74-3\\DOSBox.exe",
-  "emulatorArguments": "-conf \"C:\\Users\\T14\\AppData\\Local\\DOSBox\\dosbox-0.74-3.conf\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\"",
-  "startupInput": [
-    "ENTER"
-  ]
+  "emulatorArguments": "-conf \"C:\\Users\\T14\\AppData\\Local\\DOSBox\\dosbox-0.74-3.conf\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\""
 }

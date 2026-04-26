@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using ChildhoodGame.Core;
+using ChildhoodGame.Core.Strategy.TicTacToe;
 
 namespace ChildhoodGame.Runner;
 
@@ -210,7 +211,7 @@ internal sealed class GameLauncherForm : Form
         var helperLabel = new Label
         {
             AutoSize = true,
-            Text = "The folder must contain one .conf file, one .exe file, and one .json file.",
+            Text = "The folder must contain one .exe file and one .json file.",
             ForeColor = SubtleTextColor,
             Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point),
             Margin = new Padding(0, 10, 0, 0)
@@ -432,13 +433,31 @@ internal sealed class GameLauncherForm : Form
                 AppendLog("INFO", $"Launching DOS runtime for '{loadResult.GamePackage.GameExecutablePath}'.");
                 await runtime.StartAsync(loadResult.GamePackage);
 
-                var startupInput = loadResult.GamePackage.RuntimeConfig.StartupInput;
-                if (startupInput is not null && startupInput.Length > 0)
+                if (ShouldRunPaidBetaAutomation(loadResult.GamePackage)
+                    && runtime is IWindowCaptureRuntime captureRuntime)
                 {
-                    foreach (var command in startupInput)
+                    AppendLog("INFO", "Starting PAIDBETA screen-aware automation.");
+                    var automation = new PaidBetaDosAutomation();
+                    var result = await automation.RunAsync(
+                        runtime,
+                        inputController,
+                        captureRuntime,
+                        loadResult.GamePackage,
+                        new PaidBetaAutomationOptions(),
+                        message => AppendLog("INFO", message));
+
+                    AppendLog(result.IsWin ? "INFO" : "ERROR", $"PAIDBETA automation result: {result.Summary}");
+                }
+                else
+                {
+                    var startupInput = loadResult.GamePackage.RuntimeConfig.StartupInput;
+                    if (startupInput is not null && startupInput.Length > 0)
                     {
-                        await inputController.SendCommandAsync(command);
-                        AppendLog("INFO", $"Startup input sent: {command}");
+                        foreach (var command in startupInput)
+                        {
+                            await inputController.SendCommandAsync(command);
+                            AppendLog("INFO", $"Startup input sent: {command}");
+                        }
                     }
                 }
 
@@ -454,6 +473,10 @@ internal sealed class GameLauncherForm : Form
             }
         }, "Launching...", AccentColor);
     }
+
+    private static bool ShouldRunPaidBetaAutomation(GamePackage gamePackage) =>
+        Path.GetFileName(gamePackage.GameExecutablePath)
+            .Equals("PAIDBETA.EXE", StringComparison.OrdinalIgnoreCase);
 
     private async void HandleStopClick(object? sender, EventArgs e)
     {

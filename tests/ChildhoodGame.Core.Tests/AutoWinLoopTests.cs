@@ -1,46 +1,99 @@
 using ChildhoodGame.Core;
 using ChildhoodGame.Core.Strategy;
+using ChildhoodGame.Core.Strategy.TicTacToe;
+using Xunit;
 
 namespace ChildhoodGame.Core.Tests;
 
 public sealed class AutoWinLoopTests
 {
     [Fact]
-    public async Task MockedRuntime_TransitionsState_FromAppliedInputs()
+    public async Task MockedTicTacToeRuntime_AppliesDifficultyAndMoves_WithComputerResponse()
     {
-        await using var runtime = new MockedGameStateRuntime(new GameRuntimeState(0, 1, new Dictionary<string, bool>()));
+        var computer = new PaidBetaComputerMoveStrategy(new[] { 1 });
+        await using var runtime = new MockedTicTacToeRuntime(computerStrategyFactory: _ => computer);
         await runtime.StartAsync(BuildPackage());
 
-        await runtime.SendInputAsync("GAIN_SCORE");
-        await runtime.SendInputAsync("ADVANCE_LEVEL");
-        await runtime.SendInputAsync("COMPLETE_OBJECTIVE:boss_key");
+        await runtime.SendInputAsync("2");
+        await runtime.SendInputAsync("5");
 
         var state = await runtime.ReadStateAsync();
 
-        Assert.Equal(10, state.Score);
-        Assert.Equal(2, state.Level);
-        Assert.True(state.TryGetObjectiveFlag("boss_key", out var completed) && completed);
+        Assert.True(state.DifficultySelected);
+        Assert.Equal(TicTacToeDifficulty.Hard, state.Difficulty);
+        Assert.Equal(TicTacToeMark.O, state.Board[5]);
+        Assert.Equal(TicTacToeMark.X, state.Board[1]);
     }
 
     [Fact]
-    public async Task AutoWinLoop_ReachesWin_WhenAllDetectorsSatisfied()
+    public void OptimalTicTacToeStrategy_TakesWinningMove_WhenAvailable()
     {
-        await using var runtime = new MockedGameStateRuntime(new GameRuntimeState(0, 1, new Dictionary<string, bool>()));
+        var board = new TicTacToeBoard(new[]
+        {
+            TicTacToeMark.O, TicTacToeMark.O, TicTacToeMark.Empty,
+            TicTacToeMark.X, TicTacToeMark.X, TicTacToeMark.Empty,
+            TicTacToeMark.Empty, TicTacToeMark.Empty, TicTacToeMark.Empty
+        });
+        var state = new TicTacToeGameState(
+            board,
+            TicTacToeMark.O,
+            TicTacToeMark.X,
+            DifficultySelected: true,
+            Difficulty: TicTacToeDifficulty.Easy);
+
+        var move = new OptimalTicTacToeMoveStrategy().SelectMove(state);
+
+        Assert.Equal(3, move?.Position);
+    }
+
+    [Fact]
+    public async Task AutoWinLoop_RestartsUntilPaidBetaHardBranchCanBeForcedToWin()
+    {
+        var computer = new PaidBetaComputerMoveStrategy(new[] { 1, 2 });
+        await using var runtime = new MockedTicTacToeRuntime(computerStrategyFactory: _ => computer);
         await runtime.StartAsync(BuildPackage());
 
-        var detectors = new IWinConditionDetector[]
-        {
-            new ScoreWinConditionDetector(50),
-            new LevelWinConditionDetector(3),
-            new ObjectiveFlagWinConditionDetector(DeterministicAutoWinActionStrategy.BossKeyObjective)
-        };
-
-        var loop = new AutoWinLoop(runtime, new DeterministicAutoWinActionStrategy(), detectors);
+        var loop = new AutoWinLoop<TicTacToeGameState>(
+            runtime,
+            new PaidBetaAlwaysWinActionStrategy(),
+            new[] { new TicTacToePlayerWinConditionDetector() });
         var result = await loop.RunAsync(new AutoWinOptions(MaxSteps: 20));
 
         Assert.True(result.IsWin);
-        Assert.Equal(8, result.StepsExecuted);
-        Assert.True(result.Progress.Last().IsWin);
+        Assert.Contains(result.Progress, progress => progress.Actions.Contains(TicTacToeInput.RestartCommand));
+        Assert.Equal(1, result.Progress.Last().StateAfterActions.RestartCount);
+        Assert.Equal(TicTacToeMark.O, result.Progress.Last().StateAfterActions.Board.GetWinner());
+    }
+
+    [Fact]
+    public void PaidBetaHardModeMoveOracle_CentersAgainstFirstNonCenterMove()
+    {
+        var board = new TicTacToeBoard().PlaceMark(1, TicTacToeMark.O);
+
+        var moves = PaidBetaHardModeMoveOracle.GetPossibleMoves(
+            board,
+            TicTacToeMark.X,
+            TicTacToeMark.O);
+
+        Assert.Equal(new[] { 5 }, moves);
+    }
+
+    [Fact]
+    public void PaidBetaHardModeExploitMoveStrategy_UsesForkBranchAfterComputerSideMove()
+    {
+        var board = new TicTacToeBoard()
+            .PlaceMark(5, TicTacToeMark.O)
+            .PlaceMark(2, TicTacToeMark.X);
+        var state = new TicTacToeGameState(
+            board,
+            TicTacToeMark.O,
+            TicTacToeMark.X,
+            DifficultySelected: true,
+            Difficulty: TicTacToeDifficulty.Hard);
+
+        var move = new PaidBetaHardModeExploitMoveStrategy().SelectMove(state);
+
+        Assert.Equal(1, move?.Position);
     }
 
     private static GamePackage BuildPackage() =>

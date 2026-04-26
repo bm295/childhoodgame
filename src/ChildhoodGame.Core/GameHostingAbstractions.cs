@@ -23,6 +23,11 @@ public interface IInputController
     Task SendCommandAsync(string command, CancellationToken cancellationToken = default);
 }
 
+public interface IWindowCaptureRuntime
+{
+    Task<GameWindowCapture> CaptureWindowAsync(CancellationToken cancellationToken = default);
+}
+
 public sealed record GameLaunchOptions(
     string GamePath,
     bool Run,
@@ -49,4 +54,17 @@ public sealed record DosRuntimeConfig(
     [property: JsonPropertyName("startupInput")] string[]? StartupInput)
 {
     public const string ConfigFileName = "game.config.json";
+}
+
+public sealed record GameWindowCapture(int Width, int Height, int[] ArgbPixels)
+{
+    public int GetPixelArgb(int x, int y)
+    {
+        if (x < 0 || x >= Width || y < 0 || y >= Height)
+        {
+            return 0;
+        }
+
+        return ArgbPixels[(y * Width) + x];
+    }
 }
