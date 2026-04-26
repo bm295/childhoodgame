@@ -28,6 +28,23 @@ The launcher opens a desktop window where you can:
 
 You can also drag and drop the target game folder onto the launcher window.
 
+## Auto-win simulation mode
+
+The runner also supports a deterministic automation loop:
+
+```bash
+dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj -- --autowin --steps 20 --delay-ms 0
+```
+
+`--autowin` runs a strategy-driven state loop that repeatedly:
+
+- reads game state from runtime
+- selects next action(s)
+- applies input commands
+- evaluates win conditions (score, level, objective flags)
+
+The console output is stable and step-based so it can be used in CI logs.
+
 ## Game folder requirements
 
 The loader validates that the selected folder contains:
