@@ -139,7 +139,8 @@ public sealed class WrapperProcessDosEmulatorStrategy : IDosEmulatorStrategy
     {
         var args = emulatorArguments ?? string.Empty;
         args = args.Replace("{config}", gamePackage.DosConfigPath, StringComparison.OrdinalIgnoreCase);
-        args = args.Replace("{exe}", gamePackage.GameExecutablePath, StringComparison.OrdinalIgnoreCase);
+        args = args.Replace("{gameRoot}", gamePackage.GameRootPath, StringComparison.OrdinalIgnoreCase);
+        args = args.Replace("{exe}", Path.GetFileName(gamePackage.GameExecutablePath), StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(gamePackage.LoadStatePath))
         {

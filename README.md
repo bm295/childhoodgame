@@ -4,7 +4,7 @@ This repository is a C#/.NET solution that validates and launches DOS games thro
 
 ## Projects
 
-- `src/ChildhoodGame.Runner`: Windows launcher for browsing a game file, validating the package, and starting the runtime.
+- `src/ChildhoodGame.Runner`: Windows launcher for browsing a game folder, validating the package, and starting the runtime.
 - `src/ChildhoodGame.Core`: Loader/runtime abstractions and DOS emulator strategy integration.
 
 ## SDK and framework version
@@ -21,32 +21,38 @@ dotnet run --project src/ChildhoodGame.Runner/ChildhoodGame.Runner.csproj
 
 The launcher opens a desktop window where you can:
 
-- browse for any file inside the game folder
-- inspect the resolved game root folder
+- browse for the game folder
 - optionally choose save-state and load-state files
 - validate the package before launch
 - start and stop the runtime from the same window
 
-You can also drag and drop a file from the target game folder onto the launcher window.
+You can also drag and drop the target game folder onto the launcher window.
 
 ## Game folder requirements
 
-The loader validates:
+The loader validates that the selected folder contains:
 
-- `DOSBOX.CONF`
-- `game.config.json`
-- executable specified by `requiredExecutable` (defaults to `GAME.EXE`)
+- one `.conf` file
+- one `.exe` file
+- one `.json` file
+
+When conventional names are present, the loader prefers `DOSBOX.CONF` and `game.config.json`.
+Otherwise, it uses the first matching file alphabetically. If compatible runtime settings are missing,
+the launcher defaults to wrapper mode with `dosbox`.
 
 `game.config.json` example:
+
+A ready-to-use sample file is available at `samples/game.config.json`.
 
 ```json
 {
   "emulatorType": "wrapper",
-  "emulatorExecutable": "dosbox",
-  "emulatorArguments": "-conf \"{config}\" -c \"mount c .\" -c \"c:\" -c \"{exe}\"",
-  "startupInput": ["ENTER"],
-  "requiredExecutable": "GAME.EXE"
+  "emulatorExecutable": "C:\\Program Files (x86)\\DOSBox-0.74-3\\DOSBox.exe",
+  "emulatorArguments": "-conf \"{config}\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\"",
+  "startupInput": ["ENTER"]
 }
 ```
 
 Use `emulatorType: "embedded"` for embedded-core mode.
+
+In `emulatorArguments`, `{config}` is replaced with the selected `.conf` file path, `{gameRoot}` is replaced with the selected game folder, and `{exe}` is replaced with the executable file name, such as `GAME.EXE`.

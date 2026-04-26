@@ -4,10 +4,9 @@ namespace ChildhoodGame.Core;
 
 public sealed class DosGameLoader : IGameLoader
 {
-    private static readonly string[] RequiredAssets =
-    {
-        "DOSBOX.CONF"
-    };
+    private const string DefaultEmulatorType = "wrapper";
+    private const string DefaultEmulatorExecutable = "dosbox";
+    private const string DefaultEmulatorArguments = "-conf \"{config}\" -c \"mount c {gameRoot}\" -c \"c:\" -c \"{exe}\"";
 
     public GameLoadResult Load(GameLaunchOptions options)
     {
@@ -26,61 +25,25 @@ public sealed class DosGameLoader : IGameLoader
             return new GameLoadResult(false, null, errors);
         }
 
-        foreach (var asset in RequiredAssets)
+        var dosConfigPath = FindFileByExtension(gameRootPath, ".conf", "DOSBOX.CONF");
+        if (dosConfigPath is null)
         {
-            var assetPath = Path.Combine(gameRootPath, asset);
-            if (!File.Exists(assetPath))
-            {
-                errors.Add($"Missing required DOS asset: {assetPath}");
-            }
+            errors.Add($"Game folder must contain at least one .conf file: {gameRootPath}");
         }
 
-        var configPath = Path.Combine(gameRootPath, DosRuntimeConfig.ConfigFileName);
+        var configPath = FindFileByExtension(gameRootPath, ".json", DosRuntimeConfig.ConfigFileName);
+        if (configPath is null)
+        {
+            errors.Add($"Game folder must contain at least one .json file: {gameRootPath}");
+        }
+
         DosRuntimeConfig? config = null;
-
-        if (!File.Exists(configPath))
+        if (configPath is not null)
         {
-            errors.Add($"Missing runtime config file: {configPath}");
-        }
-        else
-        {
-            try
-            {
-                var raw = File.ReadAllText(configPath);
-                config = JsonSerializer.Deserialize<DosRuntimeConfig>(raw, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (config is null)
-                {
-                    errors.Add($"Runtime config could not be parsed: {configPath}");
-                }
-                else if (string.IsNullOrWhiteSpace(config.EmulatorType))
-                {
-                    errors.Add("Runtime config must include emulatorType.");
-                }
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"Failed to parse runtime config '{configPath}': {ex.Message}");
-            }
+            config = TryReadRuntimeConfig(configPath);
         }
 
-        if (config is not null && config.EmulatorType.Equals("wrapper", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrWhiteSpace(config.EmulatorExecutable))
-            {
-                errors.Add("Runtime config must include emulatorExecutable when emulatorType is 'wrapper'.");
-            }
-        }
-
-        var requiredExecutable = config?.RequiredExecutable ?? "GAME.EXE";
-        var executablePath = Path.Combine(gameRootPath, requiredExecutable);
-        if (!File.Exists(executablePath))
-        {
-            errors.Add($"Missing required executable: {executablePath}");
-        }
+        var executablePath = FindSingleFileByExtension(gameRootPath, ".exe", errors);
 
         if (!string.IsNullOrWhiteSpace(options.LoadStatePath))
         {
@@ -101,19 +64,113 @@ public sealed class DosGameLoader : IGameLoader
             }
         }
 
-        if (errors.Count > 0 || config is null)
+        if (errors.Count > 0 || configPath is null || dosConfigPath is null || executablePath is null)
         {
             return new GameLoadResult(false, null, errors);
         }
 
+        config = NormalizeRuntimeConfig(config);
+
         var package = new GamePackage(
             GameRootPath: gameRootPath,
             GameExecutablePath: executablePath,
-            DosConfigPath: Path.Combine(gameRootPath, "DOSBOX.CONF"),
+            DosConfigPath: dosConfigPath,
             RuntimeConfig: config,
             SaveStatePath: options.SaveStatePath is null ? null : Path.GetFullPath(options.SaveStatePath),
             LoadStatePath: options.LoadStatePath is null ? null : Path.GetFullPath(options.LoadStatePath));
 
         return new GameLoadResult(true, package, Array.Empty<string>());
+    }
+
+    private static string? FindFileByExtension(string directoryPath, string extension, string? preferredFileName = null)
+    {
+        var matches = Directory.EnumerateFiles(directoryPath)
+            .Where(path => Path.GetExtension(path).Equals(extension, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (matches.Length == 0)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(preferredFileName))
+        {
+            var preferredMatch = matches.FirstOrDefault(path =>
+                Path.GetFileName(path).Equals(preferredFileName, StringComparison.OrdinalIgnoreCase));
+            if (preferredMatch is not null)
+            {
+                return preferredMatch;
+            }
+        }
+
+        return matches[0];
+    }
+
+    private static string? FindSingleFileByExtension(string directoryPath, string extension, List<string> errors)
+    {
+        var matches = Directory.EnumerateFiles(directoryPath)
+            .Where(path => Path.GetExtension(path).Equals(extension, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (matches.Length == 1)
+        {
+            return matches[0];
+        }
+
+        if (matches.Length == 0)
+        {
+            errors.Add($"Game folder must contain exactly one {extension} file: {directoryPath}");
+        }
+        else
+        {
+            errors.Add($"Game folder must contain only one {extension} file, but found {matches.Length}: {directoryPath}");
+        }
+
+        return null;
+    }
+
+    private static DosRuntimeConfig? TryReadRuntimeConfig(string configPath)
+    {
+        try
+        {
+            var raw = File.ReadAllText(configPath);
+            return JsonSerializer.Deserialize<DosRuntimeConfig>(raw, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static DosRuntimeConfig NormalizeRuntimeConfig(DosRuntimeConfig? config)
+    {
+        config ??= new DosRuntimeConfig(null!, null, null, null);
+
+        var emulatorType = string.IsNullOrWhiteSpace(config.EmulatorType)
+            ? DefaultEmulatorType
+            : config.EmulatorType;
+
+        var emulatorExecutable = config.EmulatorExecutable;
+        if (emulatorType.Equals(DefaultEmulatorType, StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(emulatorExecutable))
+        {
+            emulatorExecutable = DefaultEmulatorExecutable;
+        }
+
+        var emulatorArguments = string.IsNullOrWhiteSpace(config.EmulatorArguments)
+            ? DefaultEmulatorArguments
+            : config.EmulatorArguments;
+
+        return config with
+        {
+            EmulatorType = emulatorType,
+            EmulatorExecutable = emulatorExecutable,
+            EmulatorArguments = emulatorArguments
+        };
     }
 }

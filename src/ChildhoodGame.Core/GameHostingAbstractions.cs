@@ -46,8 +46,7 @@ public sealed record DosRuntimeConfig(
     [property: JsonPropertyName("emulatorType")] string EmulatorType,
     [property: JsonPropertyName("emulatorExecutable")] string? EmulatorExecutable,
     [property: JsonPropertyName("emulatorArguments")] string? EmulatorArguments,
-    [property: JsonPropertyName("startupInput")] string[]? StartupInput,
-    [property: JsonPropertyName("requiredExecutable")] string? RequiredExecutable)
+    [property: JsonPropertyName("startupInput")] string[]? StartupInput)
 {
     public const string ConfigFileName = "game.config.json";
 }

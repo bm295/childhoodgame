@@ -15,7 +15,6 @@ internal sealed class GameLauncherForm : Form
 
     private readonly IGameLoader loader;
 
-    private readonly TextBox gameFileTextBox;
     private readonly TextBox gameFolderTextBox;
     private readonly TextBox saveStateTextBox;
     private readonly TextBox loadStateTextBox;
@@ -80,13 +79,9 @@ internal sealed class GameLauncherForm : Form
         var logPanel = BuildLogPanel();
         root.Controls.Add(logPanel, 0, 3);
 
-        gameFileTextBox = CreateInputTextBox("Select a game file or paste a path from the game folder");
-        gameFolderTextBox = CreateInputTextBox(string.Empty);
+        gameFolderTextBox = CreateInputTextBox("Select or paste the game folder path");
         saveStateTextBox = CreateInputTextBox("Optional output file for emulator save-state");
         loadStateTextBox = CreateInputTextBox("Optional existing save-state to load on startup");
-
-        gameFolderTextBox.ReadOnly = true;
-        gameFolderTextBox.BackColor = Color.FromArgb(247, 249, 252);
 
         browseGameButton = CreateActionButton("Browse", AccentColor, Color.White);
         browseSaveStateButton = CreateActionButton("Save As", Color.FromArgb(219, 232, 247), AccentColor);
@@ -103,7 +98,6 @@ internal sealed class GameLauncherForm : Form
 
         AcceptButton = launchButton;
 
-        gameFileTextBox.TextChanged += HandleGameFileTextChanged;
         browseGameButton.Click += HandleBrowseGameClick;
         browseSaveStateButton.Click += HandleBrowseSaveStateClick;
         browseLoadStateButton.Click += HandleBrowseLoadStateClick;
@@ -112,8 +106,8 @@ internal sealed class GameLauncherForm : Form
         stopButton.Click += HandleStopClick;
 
         UpdateStatus("Idle", AccentColor);
-        AppendLog("INFO", "Choose a file inside your DOS game folder to begin.");
-        AppendLog("INFO", "You can drag and drop a file onto this window.");
+        AppendLog("INFO", "Choose your DOS game folder to begin.");
+        AppendLog("INFO", "You can drag and drop a folder onto this window.");
         UpdateControlState();
     }
 
@@ -140,7 +134,7 @@ internal sealed class GameLauncherForm : Form
         var subtitleLabel = new Label
         {
             AutoSize = true,
-            Text = "Pick a game file, inspect the resolved folder, and launch without command-line paths.",
+            Text = "Pick a game folder, validate its files, and launch without command-line paths.",
             ForeColor = Color.FromArgb(225, 234, 244),
             Font = new Font("Segoe UI", 10.5F, FontStyle.Regular, GraphicsUnit.Point),
             Location = new Point(2, 48)
@@ -170,7 +164,7 @@ internal sealed class GameLauncherForm : Form
             Dock = DockStyle.Top,
             AutoSize = true,
             BackColor = PanelColor,
-            Padding = new Padding(18, 14, 18, 14),
+            Padding = new Padding(18, 14, 18, 20),
             Margin = new Padding(0, 0, 0, 12)
         };
     }
@@ -202,28 +196,27 @@ internal sealed class GameLauncherForm : Form
             Dock = DockStyle.Top,
             AutoSize = true,
             ColumnCount = 3,
-            RowCount = 5
+            RowCount = 4
         };
 
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110F));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120F));
 
-        AddInputRow(grid, 0, "Game file", gameFileTextBox, browseGameButton);
-        AddInputRow(grid, 1, "Game folder", gameFolderTextBox, new Panel { Width = 1, Height = browseGameButton.Height });
-        AddInputRow(grid, 2, "Save state", saveStateTextBox, browseSaveStateButton);
-        AddInputRow(grid, 3, "Load state", loadStateTextBox, browseLoadStateButton);
+        AddInputRow(grid, 0, "Game folder", gameFolderTextBox, browseGameButton);
+        AddInputRow(grid, 1, "Save state", saveStateTextBox, browseSaveStateButton);
+        AddInputRow(grid, 2, "Load state", loadStateTextBox, browseLoadStateButton);
 
         var helperLabel = new Label
         {
             AutoSize = true,
-            Text = "Select any file inside the game folder, such as the executable, DOSBOX.CONF, or game.config.json.",
+            Text = "The folder must contain one .conf file, one .exe file, and one .json file.",
             ForeColor = SubtleTextColor,
             Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point),
             Margin = new Padding(0, 10, 0, 0)
         };
 
-        grid.Controls.Add(helperLabel, 0, 4);
+        grid.Controls.Add(helperLabel, 0, 3);
         grid.SetColumnSpan(helperLabel, 3);
 
         selectionPanel.Controls.Add(grid);
@@ -253,7 +246,7 @@ internal sealed class GameLauncherForm : Form
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Location = new Point(0, 0),
-            Padding = new Padding(0),
+            Padding = new Padding(0, 0, 0, 8),
             Margin = new Padding(0)
         };
 
@@ -331,44 +324,38 @@ internal sealed class GameLauncherForm : Form
 
     private static Button CreateActionButton(string text, Color backColor, Color foreColor)
     {
-        return new Button
+        var borderColor = foreColor == Color.White ? ControlPaint.Dark(backColor) : foreColor;
+        return new BorderedButton(borderColor)
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Text = text,
             Padding = new Padding(16, 8, 16, 8),
-            FlatStyle = FlatStyle.Flat,
             BackColor = backColor,
             ForeColor = foreColor,
-            Margin = new Padding(0, 0, 10, 0),
+            Margin = new Padding(0, 0, 10, 8),
             UseVisualStyleBackColor = false
         };
     }
 
-    private void HandleGameFileTextChanged(object? sender, EventArgs e)
-    {
-        gameFolderTextBox.Text = ResolveGameFolder(gameFileTextBox.Text);
-    }
-
     private void HandleBrowseGameClick(object? sender, EventArgs e)
     {
-        using var dialog = new OpenFileDialog
+        using var dialog = new FolderBrowserDialog
         {
-            Title = "Select a file from the target game folder",
-            Filter = "Game files|*.exe;*.bat;*.com;game.config.json;DOSBOX.CONF|All files|*.*",
-            CheckFileExists = true,
-            Multiselect = false
+            Description = "Select the target game folder",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = false
         };
 
-        ApplyDialogStartDirectory(dialog, gameFileTextBox.Text);
+        ApplyDialogStartDirectory(dialog, gameFolderTextBox.Text);
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
             return;
         }
 
-        gameFileTextBox.Text = dialog.FileName;
-        AppendLog("INFO", $"Selected game file '{dialog.FileName}'.");
+        gameFolderTextBox.Text = dialog.SelectedPath;
+        AppendLog("INFO", $"Selected game folder '{dialog.SelectedPath}'.");
     }
 
     private void HandleBrowseSaveStateClick(object? sender, EventArgs e)
@@ -516,8 +503,15 @@ internal sealed class GameLauncherForm : Form
             return;
         }
 
-        gameFileTextBox.Text = droppedFiles[0];
-        AppendLog("INFO", $"Dropped path '{droppedFiles[0]}'.");
+        var gameFolder = ResolveGameFolder(droppedFiles[0]);
+        if (string.IsNullOrWhiteSpace(gameFolder))
+        {
+            AppendLog("ERROR", $"Dropped path could not be resolved to a folder: '{droppedFiles[0]}'.");
+            return;
+        }
+
+        gameFolderTextBox.Text = gameFolder;
+        AppendLog("INFO", $"Dropped game folder '{gameFolder}'.");
     }
 
     private void HandleFormClosing(object? sender, FormClosingEventArgs e)
@@ -549,11 +543,11 @@ internal sealed class GameLauncherForm : Form
 
     private GameLoadResult? ValidateSelection()
     {
-        var selectedPath = gameFileTextBox.Text.Trim();
+        var selectedPath = gameFolderTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(selectedPath))
         {
-            UpdateStatus("Select a file", ErrorColor);
-            AppendLog("ERROR", "Choose a game file before validating or launching.");
+            UpdateStatus("Select a folder", ErrorColor);
+            AppendLog("ERROR", "Choose a game folder before validating or launching.");
             return null;
         }
 
@@ -621,7 +615,7 @@ internal sealed class GameLauncherForm : Form
     {
         var runtimeIsActive = runtime is not null && runtime.IsRunning;
 
-        gameFileTextBox.Enabled = !isBusy && !runtimeIsActive;
+        gameFolderTextBox.Enabled = !isBusy && !runtimeIsActive;
         saveStateTextBox.Enabled = !isBusy && !runtimeIsActive;
         loadStateTextBox.Enabled = !isBusy && !runtimeIsActive;
         browseGameButton.Enabled = !isBusy && !runtimeIsActive;
@@ -668,12 +662,20 @@ internal sealed class GameLauncherForm : Form
                 return Path.GetDirectoryName(Path.GetFullPath(path)) ?? string.Empty;
             }
 
-            var fullPath = Path.GetFullPath(path);
-            return Path.GetDirectoryName(fullPath) ?? string.Empty;
+            return Path.GetFullPath(path);
         }
         catch
         {
             return string.Empty;
+        }
+    }
+
+    private static void ApplyDialogStartDirectory(FolderBrowserDialog dialog, string existingPath)
+    {
+        var startDirectory = ResolveGameFolder(existingPath);
+        if (!string.IsNullOrWhiteSpace(startDirectory) && Directory.Exists(startDirectory))
+        {
+            dialog.SelectedPath = startDirectory;
         }
     }
 
@@ -699,6 +701,127 @@ internal sealed class GameLauncherForm : Form
         }
         catch
         {
+        }
+    }
+
+    private sealed class BorderedButton : Button
+    {
+        private readonly Color borderColor;
+        private bool isHovered;
+        private bool isPressed;
+
+        public BorderedButton(Color borderColor)
+        {
+            this.borderColor = borderColor;
+
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            MinimumSize = new Size(0, 48);
+
+            SetStyle(
+                ControlStyles.UserPaint
+                | ControlStyles.AllPaintingInWmPaint
+                | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.ResizeRedraw,
+                true);
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            isHovered = true;
+            Invalidate();
+            base.OnMouseEnter(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            isHovered = false;
+            isPressed = false;
+            Invalidate();
+            base.OnMouseLeave(e);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                isPressed = true;
+                Invalidate();
+            }
+
+            base.OnMouseDown(e);
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            isPressed = false;
+            Invalidate();
+            base.OnMouseUp(e);
+        }
+
+        protected override void OnEnabledChanged(EventArgs e)
+        {
+            Invalidate();
+            base.OnEnabledChanged(e);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var backgroundColor = Enabled ? BackColor : SystemColors.Control;
+            if (Enabled && isPressed)
+            {
+                backgroundColor = ControlPaint.Dark(backgroundColor);
+            }
+            else if (Enabled && isHovered)
+            {
+                backgroundColor = ControlPaint.Light(backgroundColor);
+            }
+
+            using (var brush = new SolidBrush(backgroundColor))
+            {
+                e.Graphics.FillRectangle(brush, ClientRectangle);
+            }
+
+            var textColor = Enabled ? ForeColor : SystemColors.GrayText;
+            TextRenderer.DrawText(
+                e.Graphics,
+                Text,
+                Font,
+                ClientRectangle,
+                textColor,
+                TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.VerticalCenter
+                | TextFormatFlags.SingleLine
+                | TextFormatFlags.EndEllipsis);
+
+            DrawButtonBorder(e.Graphics, Enabled ? borderColor : SystemColors.ControlDark);
+
+            if (Focused && ShowFocusCues)
+            {
+                var focusBounds = Rectangle.Inflate(ClientRectangle, -4, -4);
+                ControlPaint.DrawFocusRectangle(e.Graphics, focusBounds, textColor, backgroundColor);
+            }
+        }
+
+        private void DrawButtonBorder(Graphics graphics, Color color)
+        {
+            var width = ClientSize.Width;
+            var height = ClientSize.Height;
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            using var pen = new Pen(color);
+            graphics.DrawLine(pen, 0, 0, width - 1, 0);
+            graphics.DrawLine(pen, 0, 0, 0, height - 1);
+            graphics.DrawLine(pen, width - 1, 0, width - 1, height - 1);
+            graphics.DrawLine(pen, 0, height - 1, width - 1, height - 1);
+
+            if (height > 2)
+            {
+                graphics.DrawLine(pen, 0, height - 2, width - 1, height - 2);
+            }
         }
     }
 }
