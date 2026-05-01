@@ -30,10 +30,6 @@ public sealed class DosGameLoader : IGameLoader
             ?? DefaultDosBoxConfigPath;
 
         var configPath = FindFileByExtension(gameRootPath, ".json", DosRuntimeConfig.ConfigFileName);
-        if (configPath is null)
-        {
-            errors.Add($"Game folder must contain at least one .json file: {gameRootPath}");
-        }
 
         DosRuntimeConfig? config = null;
         if (configPath is not null)
@@ -62,7 +58,7 @@ public sealed class DosGameLoader : IGameLoader
             }
         }
 
-        if (errors.Count > 0 || configPath is null || executablePath is null)
+        if (errors.Count > 0 || executablePath is null)
         {
             return new GameLoadResult(false, null, errors);
         }
