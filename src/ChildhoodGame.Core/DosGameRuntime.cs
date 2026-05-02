@@ -255,13 +255,17 @@ internal static class WindowsKeyboardInput
     {
         ShowWindow(windowHandle, ShowRestore);
         SetForegroundWindow(windowHandle);
-        Thread.Sleep(75);
+        Thread.Sleep(50);
+        
+        // Try to ensure window is truly active
+        SetForegroundWindow(windowHandle);
+        Thread.Sleep(150);
 
         var keys = ResolveKeys(command);
         foreach (var key in keys)
         {
             SendKey(key);
-            Thread.Sleep(35);
+            Thread.Sleep(50);
         }
     }
 
@@ -299,6 +303,10 @@ internal static class WindowsKeyboardInput
             "SPACE" => new KeyStroke(0x20),
             "TAB" => new KeyStroke(0x09),
             "BACKSPACE" => new KeyStroke(0x08),
+            "UP" => new KeyStroke(0x26),
+            "DOWN" => new KeyStroke(0x28),
+            "LEFT" => new KeyStroke(0x25),
+            "RIGHT" => new KeyStroke(0x27),
             _ => default
         };
 

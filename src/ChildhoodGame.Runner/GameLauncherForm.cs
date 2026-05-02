@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using ChildhoodGame.Core;
 using ChildhoodGame.Core.Strategy.TicTacToe;
+using ChildhoodGame.Core.Strategy.Snake;
 
 namespace ChildhoodGame.Runner;
 
@@ -448,6 +449,32 @@ internal sealed class GameLauncherForm : Form
 
                     AppendLog(result.IsWin ? "INFO" : "ERROR", $"PAIDBETA automation result: {result.Summary}");
                 }
+                else if (ShouldRunSnakeAutomation(loadResult.GamePackage)
+                    && runtime is IWindowCaptureRuntime captureRuntimeSnake)
+                {
+                    AppendLog("INFO", "Starting Snake screen-aware automation.");
+                    var startupInput = loadResult.GamePackage.RuntimeConfig.StartupInput;
+                    if (startupInput is not null && startupInput.Length > 0)
+                    {
+                        foreach (var command in startupInput)
+                        {
+                            await inputController.SendCommandAsync(command);
+                            AppendLog("INFO", $"Startup input sent: {command}");
+                        }
+                    }
+                    await Task.Delay(500);
+                    
+                    var automation = new SnakeDosAutomation();
+                    var result = await automation.RunAsync(
+                        runtime,
+                        inputController,
+                        captureRuntimeSnake,
+                        loadResult.GamePackage,
+                        new SnakeAutomationOptions(),
+                        message => AppendLog("INFO", message));
+
+                    AppendLog(result.IsWin ? "INFO" : "ERROR", $"Snake automation result: {result.Summary}");
+                }
                 else
                 {
                     var startupInput = loadResult.GamePackage.RuntimeConfig.StartupInput;
@@ -477,6 +504,10 @@ internal sealed class GameLauncherForm : Form
     private static bool ShouldRunPaidBetaAutomation(GamePackage gamePackage) =>
         Path.GetFileName(gamePackage.GameExecutablePath)
             .Equals("PAIDBETA.EXE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ShouldRunSnakeAutomation(GamePackage gamePackage) =>
+        Path.GetFileName(gamePackage.GameExecutablePath)
+            .Equals("SNAKE.EXE", StringComparison.OrdinalIgnoreCase);
 
     private async void HandleStopClick(object? sender, EventArgs e)
     {

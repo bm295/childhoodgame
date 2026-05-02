@@ -29,7 +29,31 @@ public sealed class DosGameLoader : IGameLoader
         var dosConfigPath = FindFileByExtension(gameRootPath, ".conf", "DOSBOX.CONF")
             ?? DefaultDosBoxConfigPath;
 
+        // Look for config file in game folder first, then in application directory
         var configPath = FindFileByExtension(gameRootPath, ".json", DosRuntimeConfig.ConfigFileName);
+        if (configPath is null)
+        {
+            // Check application directory for global config
+            var appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            configPath = FindFileByExtension(appDirectory, ".json", "game.config.json");
+            
+            // If not found in app directory, check parent directory (project directory)
+            if (configPath is null)
+            {
+                var parentDirectory = Directory.GetParent(appDirectory)?.FullName;
+                if (parentDirectory is not null)
+                {
+                    configPath = FindFileByExtension(parentDirectory, ".json", "game.config.json");
+                }
+            }
+            
+            // As a fallback, check current working directory
+            if (configPath is null)
+            {
+                var currentDirectory = Environment.CurrentDirectory;
+                configPath = FindFileByExtension(currentDirectory, ".json", "game.config.json");
+            }
+        }
 
         DosRuntimeConfig? config = null;
         if (configPath is not null)

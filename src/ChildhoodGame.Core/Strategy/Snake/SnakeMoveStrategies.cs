@@ -23,115 +23,179 @@ public sealed class SnakeGreedyPathStrategy : ISnakeMoveStrategy
 {
     public SnakeDirection SelectNextDirection(SnakeGameState state)
     {
-        if (state.IsGameOver || state.ApplePosition == null || state.SnakeBody.Count == 0)
+        if (state.IsGameOver || state.SnakeBody.Count == 0)
         {
-            return SnakeDirection.Right; // Default fallback
+            return SnakeDirection.Right;
         }
 
         var head = state.SnakeBody[0];
-        var apple = state.ApplePosition;
+        if (state.ApplePosition == null)
+        {
+            return GetSafeFallbackDirection(state, head);
+        }
 
-        // Calculate the direction that moves closer to the apple
-        var dx = Math.Sign(apple.X - head.X);
-        var dy = Math.Sign(apple.Y - head.Y);
+        var path = FindPathToApple(state, head, state.ApplePosition);
+        if (path.Count > 0)
+        {
+            return path[0];
+        }
 
-        // Prefer the direction that reduces distance most
-        // If we can move horizontally or vertically, prioritize the one that reduces distance more
-        var directions = GetCandidateDirections(state, head, dx, dy)
-            .OrderByDescending(dir => CalculateDirectionPriority(dir, head, apple, state))
-            .ToList();
-
-        return directions.FirstOrDefault(SnakeDirection.Right);
+        return GetSafeFallbackDirection(state, head);
     }
 
-    /// <summary>
-    /// Returns candidate directions that don't cause immediate collision.
-    /// Attempts to move toward the apple, with fallback directions.
-    /// </summary>
-    private static IEnumerable<SnakeDirection> GetCandidateDirections(
-        SnakeGameState state, 
+    private static IReadOnlyList<SnakeDirection> FindPathToApple(
+        SnakeGameState state,
         SnakeSegment head,
-        int appleXDirection,
-        int appleYDirection)
+        SnakeSegment apple)
     {
-        var candidates = new List<SnakeDirection>();
+        var queue = new Queue<SnakeSegment>();
+        var visited = new HashSet<SnakeSegment> { head };
+        var parent = new Dictionary<SnakeSegment, (SnakeSegment Previous, SnakeDirection Direction)>();
+        var reverseDirection = GetReverseDirection(state.CurrentDirection);
 
-        // Primary direction preferences: horizontal or vertical toward apple
-        if (appleXDirection != 0)
+        var snakeBodyObstacles = new HashSet<SnakeSegment>(state.SnakeBody);
+        if (state.SnakeBody.Count > 0)
         {
-            var xDir = appleXDirection > 0 ? SnakeDirection.Right : SnakeDirection.Left;
-            if (!CausesCollision(state, head, xDir))
+            snakeBodyObstacles.Remove(state.SnakeBody[^1]);
+        }
+
+        queue.Enqueue(head);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current.Equals(apple))
             {
-                candidates.Add(xDir);
+                return ReconstructPath(parent, current);
+            }
+
+            foreach (var direction in GetOrderedDirections(current, apple))
+            {
+                if (current.Equals(head) && direction == reverseDirection)
+                {
+                    continue;
+                }
+
+                var next = GetNextPosition(current, direction);
+                if (!state.Board.IsInBounds(next.X, next.Y) || visited.Contains(next))
+                {
+                    continue;
+                }
+
+                if (snakeBodyObstacles.Contains(next))
+                {
+                    continue;
+                }
+
+                if (state.Board.Get(next.X, next.Y) == SnakeMark.Wall)
+                {
+                    continue;
+                }
+
+                visited.Add(next);
+                parent[next] = (current, direction);
+                queue.Enqueue(next);
             }
         }
 
-        if (appleYDirection != 0)
-        {
-            var yDir = appleYDirection > 0 ? SnakeDirection.Down : SnakeDirection.Up;
-            if (!CausesCollision(state, head, yDir))
-            {
-                candidates.Add(yDir);
-            }
-        }
-
-        // Fallback: try all other safe directions
-        var allDirections = new[] { SnakeDirection.Up, SnakeDirection.Down, SnakeDirection.Left, SnakeDirection.Right };
-        foreach (var dir in allDirections)
-        {
-            if (!candidates.Contains(dir) && !CausesCollision(state, head, dir))
-            {
-                candidates.Add(dir);
-            }
-        }
-
-        return candidates.Count > 0 ? candidates : new[] { SnakeDirection.Right };
+        return Array.Empty<SnakeDirection>();
     }
 
-    /// <summary>
-    /// Calculates a priority score for a direction based on distance to apple and safety.
-    /// Higher scores are better.
-    /// </summary>
-    private static double CalculateDirectionPriority(
-        SnakeDirection direction,
-        SnakeSegment head,
-        SnakeSegment apple,
-        SnakeGameState state)
+    private static IReadOnlyList<SnakeDirection> ReconstructPath(
+        Dictionary<SnakeSegment, (SnakeSegment Previous, SnakeDirection Direction)> parent,
+        SnakeSegment target)
     {
-        var nextPos = GetNextPosition(head, direction);
-        
-        // Distance reduction score (negative means moving away)
-        var currentDistance = Math.Abs(head.X - apple.X) + Math.Abs(head.Y - apple.Y);
-        var nextDistance = Math.Abs(nextPos.X - apple.X) + Math.Abs(nextPos.Y - apple.Y);
-        var distanceImprovement = currentDistance - nextDistance;
+        var path = new List<SnakeDirection>();
+        var current = target;
 
-        // Prefer directions that move toward the apple
-        return distanceImprovement * 10.0;
+        while (parent.TryGetValue(current, out var step))
+        {
+            path.Insert(0, step.Direction);
+            current = step.Previous;
+        }
+
+        return path;
     }
 
-    /// <summary>
-    /// Checks if moving in a direction would cause the snake to collide with a wall or itself.
-    /// </summary>
+    private static IEnumerable<SnakeDirection> GetOrderedDirections(SnakeSegment head, SnakeSegment apple)
+    {
+        var dx = apple.X - head.X;
+        var dy = apple.Y - head.Y;
+        var directions = new List<SnakeDirection>();
+
+        if (Math.Abs(dx) >= Math.Abs(dy))
+        {
+            if (dx > 0) directions.Add(SnakeDirection.Right);
+            if (dx < 0) directions.Add(SnakeDirection.Left);
+            if (dy > 0) directions.Add(SnakeDirection.Down);
+            if (dy < 0) directions.Add(SnakeDirection.Up);
+        }
+        else
+        {
+            if (dy > 0) directions.Add(SnakeDirection.Down);
+            if (dy < 0) directions.Add(SnakeDirection.Up);
+            if (dx > 0) directions.Add(SnakeDirection.Right);
+            if (dx < 0) directions.Add(SnakeDirection.Left);
+        }
+
+        foreach (var direction in Enum.GetValues<SnakeDirection>())
+        {
+            if (direction != SnakeDirection.None && !directions.Contains(direction))
+            {
+                directions.Add(direction);
+            }
+        }
+
+        return directions;
+    }
+
+    private static SnakeDirection GetSafeFallbackDirection(SnakeGameState state, SnakeSegment head)
+    {
+        var currentDir = state.CurrentDirection;
+        var reverseDir = GetReverseDirection(currentDir);
+        var directions = new[] { currentDir, SnakeDirection.Up, SnakeDirection.Down, SnakeDirection.Left, SnakeDirection.Right };
+
+        foreach (var direction in directions)
+        {
+            if (direction == SnakeDirection.None || direction == reverseDir)
+            {
+                continue;
+            }
+
+            if (!CausesCollision(state, head, direction))
+            {
+                return direction;
+            }
+        }
+
+        return currentDir == SnakeDirection.None ? SnakeDirection.Right : currentDir;
+    }
+
+    private static SnakeDirection GetReverseDirection(SnakeDirection currentDirection) => currentDirection switch
+    {
+        SnakeDirection.Up => SnakeDirection.Down,
+        SnakeDirection.Down => SnakeDirection.Up,
+        SnakeDirection.Left => SnakeDirection.Right,
+        SnakeDirection.Right => SnakeDirection.Left,
+        _ => SnakeDirection.None
+    };
+
     private static bool CausesCollision(SnakeGameState state, SnakeSegment head, SnakeDirection direction)
     {
         var nextPos = GetNextPosition(head, direction);
 
-        // Check bounds (walls)
         if (!state.Board.IsInBounds(nextPos.X, nextPos.Y))
         {
             return true;
         }
 
-        // Check collision with board obstacles (walls)
-        var board = state.Board;
-        var cellContent = board.Get(nextPos.X, nextPos.Y);
+        var cellContent = state.Board.Get(nextPos.X, nextPos.Y);
         if (cellContent == SnakeMark.Wall)
         {
             return true;
         }
 
-        // Check collision with body (except the tail, which will move away)
-        if (cellContent == SnakeMark.SnakeBody && 
+        if (cellContent == SnakeMark.SnakeBody &&
             !(nextPos.X == state.SnakeBody[^1].X && nextPos.Y == state.SnakeBody[^1].Y))
         {
             return true;
@@ -140,9 +204,6 @@ public sealed class SnakeGreedyPathStrategy : ISnakeMoveStrategy
         return false;
     }
 
-    /// <summary>
-    /// Calculates the next position if the snake moves in the given direction.
-    /// </summary>
     private static SnakeSegment GetNextPosition(SnakeSegment head, SnakeDirection direction)
     {
         return direction switch
@@ -155,3 +216,4 @@ public sealed class SnakeGreedyPathStrategy : ISnakeMoveStrategy
         };
     }
 }
+
