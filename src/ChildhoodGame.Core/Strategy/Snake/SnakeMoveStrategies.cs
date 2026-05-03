@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace ChildhoodGame.Core.Strategy.Snake;
 
@@ -32,6 +33,12 @@ public sealed class SnakeGreedyPathStrategy : ISnakeMoveStrategy
         if (state.ApplePosition == null)
         {
             return GetSafeFallbackDirection(state, head);
+        }
+
+        var directMove = GetDirectMoveTowardsApple(state, head, state.ApplePosition);
+        if (directMove != SnakeDirection.None)
+        {
+            return directMove;
         }
 
         var path = FindPathToApple(state, head, state.ApplePosition);
@@ -204,6 +211,68 @@ public sealed class SnakeGreedyPathStrategy : ISnakeMoveStrategy
         return false;
     }
 
+    private static SnakeDirection GetDirectMoveTowardsApple(SnakeGameState state, SnakeSegment head, SnakeSegment apple)
+    {
+        var dx = apple.X - head.X;
+        var dy = apple.Y - head.Y;
+        var currentDir = state.CurrentDirection;
+        var currentDistance = GetManhattanDistance(head, apple);
+
+        if (state.SnakeBody.Count > 1 &&
+            currentDir != SnakeDirection.None &&
+            currentDir != GetReverseDirection(currentDir) &&
+            !CausesCollision(state, head, currentDir))
+        {
+            var nextDistance = GetManhattanDistance(GetNextPosition(head, currentDir), apple);
+            if (nextDistance < currentDistance)
+            {
+                return currentDir;
+            }
+        }
+
+        var preferredDirections = new List<SnakeDirection>();
+        if (Math.Abs(dx) >= Math.Abs(dy))
+        {
+            if (dx > 0) preferredDirections.Add(SnakeDirection.Right);
+            if (dx < 0) preferredDirections.Add(SnakeDirection.Left);
+            if (dy > 0) preferredDirections.Add(SnakeDirection.Down);
+            if (dy < 0) preferredDirections.Add(SnakeDirection.Up);
+        }
+        else
+        {
+            if (dy > 0) preferredDirections.Add(SnakeDirection.Down);
+            if (dy < 0) preferredDirections.Add(SnakeDirection.Up);
+            if (dx > 0) preferredDirections.Add(SnakeDirection.Right);
+            if (dx < 0) preferredDirections.Add(SnakeDirection.Left);
+        }
+
+        foreach (var direction in preferredDirections.Distinct())
+        {
+            if (state.SnakeBody.Count > 1 && direction == GetReverseDirection(currentDir))
+            {
+                continue;
+            }
+
+            if (direction == currentDir)
+            {
+                continue;
+            }
+
+            if (CausesCollision(state, head, direction))
+            {
+                continue;
+            }
+
+            var nextDistance = GetManhattanDistance(GetNextPosition(head, direction), apple);
+            if (nextDistance < currentDistance)
+            {
+                return direction;
+            }
+        }
+
+        return SnakeDirection.None;
+    }
+
     private static SnakeSegment GetNextPosition(SnakeSegment head, SnakeDirection direction)
     {
         return direction switch
@@ -214,6 +283,11 @@ public sealed class SnakeGreedyPathStrategy : ISnakeMoveStrategy
             SnakeDirection.Right => new(head.X + 1, head.Y),
             _ => head
         };
+    }
+
+    private static int GetManhattanDistance(SnakeSegment a, SnakeSegment b)
+    {
+        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
     }
 }
 

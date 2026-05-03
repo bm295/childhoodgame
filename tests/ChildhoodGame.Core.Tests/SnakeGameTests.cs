@@ -138,6 +138,47 @@ public sealed class SnakeBoardTests
     }
 }
 
+public sealed class SnakeScreenReaderTests
+{
+    [Fact]
+    public void SnakeScreenReader_DetectsAppleAndHeadDirection()
+    {
+        const int captureWidth = 40;
+        const int captureHeight = 40;
+        const int boardWidth = 4;
+        const int boardHeight = 4;
+        var backgroundColor = (255 << 24) | (20 << 16) | (150 << 8) | 20;
+        var headColor = (255 << 24) | (220 << 16) | (220 << 8) | 20;
+        var bodyColor = headColor;
+        var appleColor = (255 << 24) | (220 << 16) | (30 << 8) | 30;
+        var pixels = Enumerable.Repeat(backgroundColor, captureWidth * captureHeight).ToArray();
+
+        void FillCell(int cellX, int cellY, int color)
+        {
+            var cellWidth = captureWidth / boardWidth;
+            var cellHeight = captureHeight / boardHeight;
+            for (var y = cellY * cellHeight; y < (cellY + 1) * cellHeight; y++)
+            {
+                for (var x = cellX * cellWidth; x < (cellX + 1) * cellWidth; x++)
+                {
+                    pixels[y * captureWidth + x] = color;
+                }
+            }
+        }
+
+        FillCell(1, 1, headColor);
+        FillCell(0, 1, bodyColor);
+        FillCell(2, 1, appleColor);
+
+        var capture = new GameWindowCapture(captureWidth, captureHeight, pixels);
+        var state = new SnakeScreenReader().ReadGameState(capture, boardWidth, boardHeight);
+
+        Assert.Equal(new SnakeSegment(1, 1), state.SnakeBody[0]);
+        Assert.Equal(new SnakeSegment(2, 1), state.ApplePosition);
+        Assert.Equal(SnakeDirection.Right, state.CurrentDirection);
+    }
+}
+
 public sealed class MockedSnakeRuntimeTests
 {
     [Fact]
@@ -344,6 +385,38 @@ public sealed class SnakeGreedyPathStrategyTests
 
         // Assert
         Assert.Equal(SnakeDirection.Right, direction);
+    }
+
+    [Fact]
+    public void SnakeGreedyPathStrategy_ContinuesForwardWhenAppleIsAheadAndOblique()
+    {
+        // Arrange
+        var board = new SnakeBoard(20, 20);
+        var strategy = new SnakeGreedyPathStrategy();
+
+        // Snake is moving up with head at (5, 5), tail below.
+        var snakeBody = ImmutableList.Create(
+            new SnakeSegment(5, 5),
+            new SnakeSegment(5, 6),
+            new SnakeSegment(5, 7)
+        );
+        var apple = new SnakeSegment(7, 3);
+        var state = new SnakeGameState(board, snakeBody, apple)
+        {
+            CurrentDirection = SnakeDirection.Up,
+            NextDirection = SnakeDirection.Up
+        };
+
+        board.Set(5, 5, SnakeMark.SnakeHead);
+        board.Set(5, 6, SnakeMark.SnakeBody);
+        board.Set(5, 7, SnakeMark.SnakeBody);
+        board.Set(7, 3, SnakeMark.Apple);
+
+        // Act
+        var direction = strategy.SelectNextDirection(state);
+
+        // Assert
+        Assert.Equal(SnakeDirection.Up, direction);
     }
 
     [Fact]

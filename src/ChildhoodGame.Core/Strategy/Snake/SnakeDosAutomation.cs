@@ -34,6 +34,8 @@ public sealed class SnakeDosAutomation
 
         log?.Invoke($"Snake automation started: attempting to eat {options.ApplesRequiredToWin} apples.");
         
+        await Task.Delay(options.InitialDelayMilliseconds, cancellationToken);
+
         for (var turn = 1; turn <= options.MaxTurnsPerAttempt; turn++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -68,6 +70,13 @@ public sealed class SnakeDosAutomation
                 {
                     log?.Invoke($"Snake automation succeeded! Ate {applesEaten} apples.");
                     return new SnakeAutomationResult(true, 1, turnCount, applesEaten, state, "Snake ate the required number of apples.");
+                }
+
+                if (turn <= options.StartupNoInputTurns)
+                {
+                    log?.Invoke($"Startup grace turn {turn}/{options.StartupNoInputTurns}: not sending movement input.");
+                    await Task.Delay(options.MoveDelayMilliseconds, cancellationToken);
+                    continue;
                 }
 
                 var direction = _moveStrategy.SelectNextDirection(state);
@@ -138,7 +147,8 @@ public sealed class SnakeDosAutomation
 
 public sealed record SnakeAutomationOptions(
     int ApplesRequiredToWin = 10,
-    int InitialDelayMilliseconds = 1500,
+    int InitialDelayMilliseconds = 0,
+    int StartupNoInputTurns = 8,
     int MoveDelayMilliseconds = 100,
     int RestartDelayMilliseconds = 1000,
     int MaxAttempts = 5,

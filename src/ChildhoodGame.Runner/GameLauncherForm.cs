@@ -453,16 +453,8 @@ internal sealed class GameLauncherForm : Form
                     && runtime is IWindowCaptureRuntime captureRuntimeSnake)
                 {
                     AppendLog("INFO", "Starting Snake screen-aware automation.");
-                    var startupInput = loadResult.GamePackage.RuntimeConfig.StartupInput;
-                    if (startupInput is not null && startupInput.Length > 0)
-                    {
-                        foreach (var command in startupInput)
-                        {
-                            await inputController.SendCommandAsync(command);
-                            AppendLog("INFO", $"Startup input sent: {command}");
-                        }
-                    }
-                    await Task.Delay(500);
+
+                    await SendSnakeSpeedOneStartupAsync(inputController, captureRuntimeSnake);
                     
                     var automation = new SnakeDosAutomation();
                     var result = await automation.RunAsync(
@@ -722,6 +714,204 @@ internal sealed class GameLauncherForm : Form
         {
             return string.Empty;
         }
+    }
+
+    private static async Task SendSnakeSpeedOneStartupAsync(IInputController inputController, IWindowCaptureRuntime captureRuntime)
+    {
+        await Task.Delay(1000);
+
+        // Main menu -> Options
+        await inputController.SendCommandAsync("DOWN");
+        await Task.Delay(300);
+        await inputController.SendCommandAsync("RETURN");
+        await Task.Delay(500);
+
+        // Options -> Controls
+        await inputController.SendCommandAsync("DOWN");
+        await Task.Delay(300);
+        await inputController.SendCommandAsync("RETURN");
+        await Task.Delay(500);
+
+        // Controls -> select Speed 1 (returns to Options)
+        await inputController.SendCommandAsync("1");
+        await Task.Delay(500);
+
+        // Options -> Back to main menu
+        await inputController.SendCommandAsync("DOWN");
+        await Task.Delay(300);
+        await inputController.SendCommandAsync("RETURN");
+        await Task.Delay(500);
+
+        // Main menu -> Start
+        await inputController.SendCommandAsync("UP");
+        await Task.Delay(300);
+        await inputController.SendCommandAsync("RETURN");
+        await Task.Delay(500);
+    }
+
+    private static int? FindSelectedMenuRow(GameWindowCapture capture)
+    {
+        var width = capture.Width;
+        var height = capture.Height;
+        var leftBound = Math.Max(0, width / 16);
+        var rightBound = Math.Min(width, width / 4);
+
+        int? selectedRow = null;
+        var bestCount = 0;
+
+        for (var y = 0; y < height; y++)
+        {
+            var count = 0;
+            for (var x = leftBound; x < rightBound; x += 2)
+            {
+                if (IsActivePixel(capture.GetPixelArgb(x, y)))
+                {
+                    count++;
+                }
+            }
+
+            if (count > bestCount)
+            {
+                bestCount = count;
+                selectedRow = y;
+            }
+        }
+
+        return bestCount >= 6 ? selectedRow : null;
+    }
+
+    private static int? FindNextMenuItemRow(GameWindowCapture capture, int? currentRow)
+    {
+        if (currentRow is null)
+        {
+            return null;
+        }
+
+        var width = capture.Width;
+        var height = capture.Height;
+        var leftBound = Math.Max(0, width / 16);
+        var rightBound = Math.Min(width, width / 4);
+        var scanStart = currentRow.Value + 5;
+
+        for (var y = scanStart; y < height; y++)
+        {
+            var count = 0;
+            for (var x = leftBound; x < rightBound; x += 2)
+            {
+                if (IsActivePixel(capture.GetPixelArgb(x, y)))
+                {
+                    count++;
+                }
+            }
+
+            if (count >= 3)
+            {
+                return y;
+            }
+        }
+
+        return null;
+    }
+
+    private static int? FindLikelyOptionsRow(GameWindowCapture capture)
+    {
+        var width = capture.Width;
+        var height = capture.Height;
+        var leftBound = Math.Max(0, width / 4);
+        var rightBound = Math.Min(width, (3 * width) / 4);
+
+        int? optionsRow = null;
+        var bestScore = 0;
+
+        for (var y = 0; y < height; y++)
+        {
+            var count = 0;
+            for (var x = leftBound; x < rightBound; x += 2)
+            {
+                if (IsActivePixel(capture.GetPixelArgb(x, y)))
+                {
+                    count++;
+                }
+            }
+
+            if (count > bestScore)
+            {
+                bestScore = count;
+                optionsRow = y;
+            }
+        }
+
+        return bestScore >= 12 ? optionsRow : null;
+    }
+
+    private static int? FindLikelyControlsRow(GameWindowCapture capture)
+    {
+        var width = capture.Width;
+        var height = capture.Height;
+        var leftBound = Math.Max(0, width / 4);
+        var rightBound = Math.Min(width, (3 * width) / 4);
+
+        int? controlsRow = null;
+        var bestScore = 0;
+
+        for (var y = 0; y < height; y++)
+        {
+            var count = 0;
+            for (var x = leftBound; x < rightBound; x += 2)
+            {
+                if (IsActivePixel(capture.GetPixelArgb(x, y)))
+                {
+                    count++;
+                }
+            }
+
+            if (count > bestScore)
+            {
+                bestScore = count;
+                controlsRow = y;
+            }
+        }
+
+        return bestScore >= 12 ? controlsRow : null;
+    }
+
+    private static int? FindLikelySpeedRow(GameWindowCapture capture)
+    {
+        var width = capture.Width;
+        var height = capture.Height;
+        var leftBound = Math.Max(0, width / 4);
+        var rightBound = Math.Min(width, (3 * width) / 4);
+
+        int? speedRow = null;
+        var bestScore = 0;
+
+        for (var y = 0; y < height; y++)
+        {
+            var count = 0;
+            for (var x = leftBound; x < rightBound; x += 2)
+            {
+                if (IsActivePixel(capture.GetPixelArgb(x, y)))
+                {
+                    count++;
+                }
+            }
+
+            if (count > bestScore)
+            {
+                bestScore = count;
+                speedRow = y;
+            }
+        }
+
+        return bestScore >= 12 ? speedRow : null;
+    }
+
+    private static bool IsActivePixel(int argb)
+    {
+        var r = (argb >> 16) & 0xFF;
+        var g = (argb >> 8) & 0xFF;
+        var b = argb & 0xFF;
+        return (r + g + b) / 3 > 80;
     }
 
     private static void ApplyDialogStartDirectory(FolderBrowserDialog dialog, string existingPath)

@@ -39,9 +39,12 @@ public sealed class SnakeScreenReader
                 var wallCount = 0;
                 var sampleCount = 0;
 
-                for (var sampleY = top; sampleY < bottom; sampleY += Math.Max(1, (bottom - top) / 3))
+                var stepX = Math.Max(1, (right - left) / 5);
+                var stepY = Math.Max(1, (bottom - top) / 5);
+
+                for (var sampleY = top; sampleY < bottom; sampleY += stepY)
                 {
-                    for (var sampleX = left; sampleX < right; sampleX += Math.Max(1, (right - left) / 3))
+                    for (var sampleX = left; sampleX < right; sampleX += stepX)
                     {
                         var pixel = capture.GetPixelArgb(sampleX, sampleY);
                         if (IsApple(pixel))
@@ -61,16 +64,16 @@ public sealed class SnakeScreenReader
                     }
                 }
 
-                if (appleCount >= 2)
+                if (appleCount >= 1)
                 {
                     apple = new SnakeSegment(x, y);
                     board.Set(x, y, SnakeMark.Apple);
                 }
-                else if (snakeCount > sampleCount / 3)
+                else if (snakeCount >= sampleCount * 0.5)
                 {
                     snakeCells.Add(new SnakeSegment(x, y));
                 }
-                else if (wallCount > sampleCount / 2 || IsBoardEdgeCell(x, y, boardWidth, boardHeight) && wallCount > 0)
+                else if (wallCount >= sampleCount * 0.5 || (IsBoardEdgeCell(x, y, boardWidth, boardHeight) && wallCount > 0))
                 {
                     board.Set(x, y, SnakeMark.Wall);
                 }
@@ -88,6 +91,15 @@ public sealed class SnakeScreenReader
         {
             orderedSnakeBody = ImmutableList.Create(new SnakeSegment(boardWidth / 2, boardHeight / 2));
             board.Set(orderedSnakeBody[0].X, orderedSnakeBody[0].Y, SnakeMark.SnakeHead);
+        }
+
+        if (apple == null)
+        {
+            apple = DetectApplePosition(capture, boardBounds, boardWidth, boardHeight);
+            if (apple != null)
+            {
+                board.Set(apple.X, apple.Y, SnakeMark.Apple);
+            }
         }
 
         var state = new SnakeGameState(board, orderedSnakeBody, apple)
@@ -155,9 +167,8 @@ public sealed class SnakeScreenReader
         var g = (pixel >> 8) & 0xFF;
         var b = pixel & 0xFF;
 
-        // Snake is usually yellow in the DOS version, but support greenish variants too.
-        var isYellowSnake = r > 160 && g > 160 && b < 120;
-        var isGreenSnake = g > 160 && r > 120 && b < 120;
+        var isYellowSnake = r > 150 && g > 150 && b < 130 && Math.Abs(r - g) < 80;
+        var isGreenSnake = g > 150 && r > 100 && b < 120 && g > r - 40;
         return isYellowSnake || isGreenSnake;
     }
 
@@ -167,7 +178,10 @@ public sealed class SnakeScreenReader
         var g = (pixel >> 8) & 0xFF;
         var b = pixel & 0xFF;
 
-        return r > 150 && r > g + 20 && r > b + 20 && g < 140 && b < 140;
+        // Allow reddish or yellowish colors, but not green
+        bool isRed = r > 120 && r > g + 25 && r > b + 25 && g < 180 && b < 180;
+        bool isYellow = g > 120 && r > 100 && g > r + 10 && g > b + 25 && b < 120;
+        return isRed || isYellow;
     }
 
     private static bool IsWallPixel(int pixel)
@@ -182,7 +196,7 @@ public sealed class SnakeScreenReader
         var b = pixel & 0xFF;
         var brightness = (r + g + b) / 3;
 
-        return brightness < 120 || (r < 120 && g < 120 && b < 120);
+        return brightness < 110 || (r < 110 && g < 110 && b < 110);
     }
 
     private static bool IsEmptyBackground(int pixel)
@@ -287,6 +301,62 @@ public sealed class SnakeScreenReader
         yield return new SnakeSegment(segment.X + 1, segment.Y);
         yield return new SnakeSegment(segment.X, segment.Y - 1);
         yield return new SnakeSegment(segment.X, segment.Y + 1);
+    }
+
+    private static SnakeSegment? DetectApplePosition(
+        GameWindowCapture capture,
+        (int X, int Y, int Width, int Height) boardBounds,
+        int boardWidth,
+        int boardHeight)
+    {
+        var appleCounts = new int[boardHeight, boardWidth];
+        var applePixels = 0;
+
+        var stepX = Math.Max(1, boardBounds.Width / (boardWidth * 4));
+        var stepY = Math.Max(1, boardBounds.Height / (boardHeight * 4));
+
+        for (var sampleY = boardBounds.Y; sampleY < boardBounds.Y + boardBounds.Height; sampleY += stepY)
+        {
+            for (var sampleX = boardBounds.X; sampleX < boardBounds.X + boardBounds.Width; sampleX += stepX)
+            {
+                var pixel = capture.GetPixelArgb(sampleX, sampleY);
+                if (!IsApple(pixel))
+                {
+                    continue;
+                }
+
+                applePixels++;
+                var relativeX = sampleX - boardBounds.X;
+                var relativeY = sampleY - boardBounds.Y;
+                var cellX = Math.Min(boardWidth - 1, Math.Max(0, relativeX * boardWidth / Math.Max(1, boardBounds.Width)));
+                var cellY = Math.Min(boardHeight - 1, Math.Max(0, relativeY * boardHeight / Math.Max(1, boardBounds.Height)));
+                appleCounts[cellY, cellX]++;
+            }
+        }
+
+        if (applePixels == 0)
+        {
+            return null;
+        }
+
+        var bestCell = (x: 0, y: 0, count: 0);
+        for (var y = 0; y < boardHeight; y++)
+        {
+            for (var x = 0; x < boardWidth; x++)
+            {
+                if (appleCounts[y, x] > bestCell.count)
+                {
+                    bestCell = (x, y, appleCounts[y, x]);
+                }
+            }
+        }
+
+        if (bestCell.count == 0)
+        {
+            return null;
+        }
+
+        return new SnakeSegment(bestCell.x, bestCell.y);
     }
 
     private static int GetManhattanDistance(SnakeSegment a, SnakeSegment b)
